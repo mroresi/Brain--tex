@@ -16,6 +16,7 @@ interface Artifact {
 interface Notebook {
   id: string;
   name: string;
+  updatedAt: string;
 }
 
 export default function Artifacts() {
@@ -37,8 +38,7 @@ export default function Artifacts() {
 
     const q = query(
       collection(db, 'artifacts'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -46,6 +46,7 @@ export default function Artifacts() {
       snapshot.forEach((doc) => {
         artifactsData.push({ id: doc.id, ...doc.data() } as Artifact);
       });
+      artifactsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setArtifacts(artifactsData);
       setLoading(false);
     }, (error) => {
@@ -61,15 +62,15 @@ export default function Artifacts() {
 
     const q = query(
       collection(db, 'notebooks'),
-      where('userId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notebooksData: Notebook[] = [];
       snapshot.forEach((doc) => {
-        notebooksData.push({ id: doc.id, name: doc.data().name });
+        notebooksData.push({ id: doc.id, name: doc.data().name, updatedAt: doc.data().updatedAt });
       });
+      notebooksData.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       setNotebooks(notebooksData);
       if (notebooksData.length > 0 && !selectedNotebookId) {
         setSelectedNotebookId(notebooksData[0].id);

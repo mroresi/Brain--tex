@@ -25,8 +25,7 @@ export default function MergeNotebooks() {
 
     const q = query(
       collection(db, 'notebooks'),
-      where('userId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -34,6 +33,7 @@ export default function MergeNotebooks() {
       snapshot.forEach((doc) => {
         notebooksData.push({ id: doc.id, ...doc.data() } as Notebook);
       });
+      notebooksData.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       setNotebooks(notebooksData);
       setLoading(false);
     }, (error) => {

@@ -33,8 +33,7 @@ export default function PromptsLibrary() {
 
     const q = query(
       collection(db, 'prompts'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -42,6 +41,7 @@ export default function PromptsLibrary() {
       snapshot.forEach((doc) => {
         promptsData.push({ id: doc.id, ...doc.data() } as Prompt);
       });
+      promptsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setPrompts(promptsData);
       setLoading(false);
     }, (error) => {

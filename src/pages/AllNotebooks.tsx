@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Filter, ArrowUpDown, Search, FileText, Download, Loader2, X, BookmarkPlus } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -33,8 +34,7 @@ export default function AllNotebooks() {
 
     const q = query(
       collection(db, 'notebooks'),
-      where('userId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -42,6 +42,9 @@ export default function AllNotebooks() {
       snapshot.forEach((doc) => {
         notebooksData.push({ id: doc.id, ...doc.data() } as Notebook);
       });
+      // Sort on the client side to avoid requiring a composite index
+      notebooksData.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      
       setNotebooks(notebooksData);
       setLoading(false);
     }, (error) => {
@@ -147,7 +150,9 @@ export default function AllNotebooks() {
                 <td className="px-4 py-3"><input type="checkbox" className="rounded border-white/20 bg-black accent-white" /></td>
                 <td className="px-4 py-3 font-medium flex items-center gap-3">
                   <FileText className="w-4 h-4 text-white/60" />
-                  {n.name}
+                  <Link to={`/notebooks/${n.id}`} className="hover:text-[#FF0000] transition-colors">
+                    {n.name}
+                  </Link>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">

@@ -28,8 +28,7 @@ export default function Collections() {
 
     const q = query(
       collection(db, 'collections'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -37,6 +36,7 @@ export default function Collections() {
       snapshot.forEach((doc) => {
         collectionsData.push({ id: doc.id, ...doc.data() } as Collection);
       });
+      collectionsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setCollections(collectionsData);
       setLoading(false);
     }, (error) => {

@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 interface Notebook {
   id: string;
   name: string;
+  updatedAt: string;
 }
 
 const browserTabs = [
@@ -48,15 +49,15 @@ export default function BulkImport() {
 
     const q = query(
       collection(db, 'notebooks'),
-      where('userId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notebooksData: Notebook[] = [];
       snapshot.forEach((doc) => {
-        notebooksData.push({ id: doc.id, name: doc.data().name });
+        notebooksData.push({ id: doc.id, name: doc.data().name, updatedAt: doc.data().updatedAt });
       });
+      notebooksData.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
       setNotebooks(notebooksData);
       setLoadingNotebooks(false);
     }, (error) => {
