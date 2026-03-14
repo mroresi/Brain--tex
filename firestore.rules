@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // User: uid, email, displayName, photoURL, role, createdAt
+    // Notebook: name, userId, sourcesCount, tags, createdAt, updatedAt
+    // Source: notebookId, userId, title, url, type, status, createdAt
+    // Artifact: notebookId, userId, name, type, url, createdAt
+    // Collection: name, userId, notebookIds, createdAt
+    // Prompt: name, content, userId, createdAt
+    // ===============================================================
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidEmail(email) {
+       return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "MRoresi@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    // Domain Validators
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['admin', 'user'] &&
+             data.createdAt is string &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 2000));
+    }
+    
+    function isValidNotebook(data) {
+      return hasRequiredFields(['name', 'userId', 'sourcesCount', 'tags', 'createdAt', 'updatedAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 128 &&
+             data.sourcesCount is number && data.sourcesCount >= 0 &&
+             data.tags is list && data.tags.size() <= 50 &&
+             data.createdAt is string &&
+             data.updatedAt is string;
+    }
+    
+    function isValidSource(data) {
+      return hasRequiredFields(['notebookId', 'userId', 'title', 'type', 'status', 'createdAt']) &&
+             data.notebookId is string && data.notebookId.size() > 0 && data.notebookId.size() < 128 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.type in ["link", "text", "file", "rss", "csv"] &&
+             data.status in ["pending", "imported"] &&
+             data.createdAt is string &&
+             (!('url' in data) || (data.url is string && data.url.size() < 2000));
+    }
+    
+    function isValidArtifact(data) {
+      return hasRequiredFields(['notebookId', 'userId', 'name', 'type', 'createdAt']) &&
+             data.notebookId is string && data.notebookId.size() > 0 && data.notebookId.size() < 128 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 500 &&
+             data.type in ["Infographic", "Note", "Audio Overview", "Video Overview", "Mind Map", "Study Guide", "Briefing Doc"] &&
+             data.createdAt is string &&
+             (!('url' in data) || (data.url is string && data.url.size() < 2000));
+    }
+    
+    function isValidCollection(data) {
+      return hasRequiredFields(['name', 'userId', 'notebookIds', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 128 &&
+             data.notebookIds is list && data.notebookIds.size() <= 1000 &&
+             data.createdAt is string;
+    }
+    
+    function isValidPrompt(data) {
+      return hasRequiredFields(['name', 'content', 'userId', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 10000 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 128 &&
+             data.createdAt is string;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    match /notebooks/{notebookId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidNotebook(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isValidNotebook(request.resource.data) && isDocOwner() && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /sources/{sourceId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidSource(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isValidSource(request.resource.data) && isDocOwner() && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /artifacts/{artifactId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidArtifact(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isValidArtifact(request.resource.data) && isDocOwner() && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /collections/{collectionId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidCollection(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isValidCollection(request.resource.data) && isDocOwner() && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+    
+    match /prompts/{promptId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidPrompt(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isValidPrompt(request.resource.data) && isDocOwner() && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+  }
+}

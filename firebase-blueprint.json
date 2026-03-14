@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the Braintex application.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Notebook": {
+      "title": "Notebook",
+      "description": "A workspace container representing a NotebookLM notebook.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "userId": { "type": "string", "description": "The UID of the user who owns this notebook" },
+        "sourcesCount": { "type": "number" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "userId", "sourcesCount", "tags", "createdAt", "updatedAt"]
+    },
+    "Source": {
+      "title": "Source",
+      "description": "An imported unit from web, chat, docs, or highlights.",
+      "type": "object",
+      "properties": {
+        "notebookId": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string", "enum": ["link", "text", "file", "rss", "csv"] },
+        "status": { "type": "string", "enum": ["pending", "imported"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["notebookId", "userId", "title", "type", "status", "createdAt"]
+    },
+    "Artifact": {
+      "title": "Artifact",
+      "description": "Generated output such as notes, study guides, briefings, quizzes.",
+      "type": "object",
+      "properties": {
+        "notebookId": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Infographic", "Note", "Audio Overview", "Video Overview", "Mind Map", "Study Guide", "Briefing Doc"] },
+        "url": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["notebookId", "userId", "name", "type", "createdAt"]
+    },
+    "Collection": {
+      "title": "Collection",
+      "description": "Grouping / workflow lane for notebooks.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "userId": { "type": "string" },
+        "notebookIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "userId", "notebookIds", "createdAt"]
+    },
+    "Prompt": {
+      "title": "Prompt",
+      "description": "Reusable instruction saved in the Prompt Holder.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "content": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "content", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles and roles."
+    },
+    "notebooks/{notebookId}": {
+      "schema": { "$ref": "#/entities/Notebook" },
+      "description": "Stores notebooks."
+    },
+    "sources/{sourceId}": {
+      "schema": { "$ref": "#/entities/Source" },
+      "description": "Stores sources."
+    },
+    "artifacts/{artifactId}": {
+      "schema": { "$ref": "#/entities/Artifact" },
+      "description": "Stores artifacts."
+    },
+    "collections/{collectionId}": {
+      "schema": { "$ref": "#/entities/Collection" },
+      "description": "Stores collections."
+    },
+    "prompts/{promptId}": {
+      "schema": { "$ref": "#/entities/Prompt" },
+      "description": "Stores prompts."
+    }
+  }
+}
